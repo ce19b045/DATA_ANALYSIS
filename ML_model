@@ -1,0 +1,217 @@
+import math
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+train = pd.read_csv('../input/pokemon-datasets-for-ml/train_pokemon.csv')
+test = pd.read_csv('../input/pokemon-datasets-for-ml/test_pokemon.csv')
+
+train.head(3)
+train.shape
+train.describe()
+# describe(include = ['O']) will show the descriptive statistics of object data types.
+train.describe(include=['O'])
+# check for missing values
+sns.heatmap(train.isnull(),yticklabels=False,cbar=False,cmap='viridis')
+def fill_type_2(cols):
+    type_2 = cols[0]
+    if pd.isnull(type_2):
+        return "None"
+    else:
+        return type_2
+    train['Type_2'] = train[['Type_2']].apply(fill_type_2,axis=1)
+    train.drop(columns=['Egg_Group_2'], inplace=True)
+    sns.heatmap(train.isnull(),yticklabels=False,cbar=False,cmap='viridis')
+    legendary = train[train['isLegendary'] == 1]
+not_legendary = train[train['isLegendary'] == 0]
+
+print("Legendary: %i (%.1f%%)"%(len(legendary), float(len(legendary))/len(train)*100.0))
+print("Not Legendary: %i (%.1f%%)"%(len(not_legendary), float(len(not_legendary))/len(train)*100.0))
+print("Total: %i"%len(train))
+plt.figure(figsize=(25,10))
+train2 = train.drop(['Number','Name','hasGender','shuffle'], axis=1)
+sns.heatmap(train2.corr(), vmin= -1, vmax=1, square=True, annot=True)
+
+#boxplot of Attack vs. Legendary
+plt.figure(figsize=(8, 4))
+sns.boxplot(x='isLegendary',y='Attack',data=train, palette='rainbow')
+
+#stripplot of Attack vs. Legendary
+plt.figure(figsize=(15, 4))
+sns.stripplot(x='Type_1',y='Total',data=train, jitter=True,hue='isLegendary',palette=['r','b'],dodge=False).set_title('Type_1 Distribution on Legendary')
+
+#stripplot of Attack vs. Legendary
+plt.figure(figsize=(15, 4))
+sns.stripplot(x='Type_2',y='Total',data=train, jitter=True,hue='isLegendary',palette=['r','b'],dodge=False).set_title('Type_2 Distribution on Legendary')
+
+type_1 = train[['Type_1','isLegendary']].groupby(['Type_1'], as_index=False).mean().set_index('Type_1')
+type_1.sort_values(by='isLegendary',ascending=False).plot(kind='bar')
+
+
+
+type_2 = train[['Type_2','isLegendary']].groupby(['Type_2'], as_index=False).mean().set_index('Type_2')
+type_2.sort_values(by='isLegendary',ascending=False).plot(kind='bar')
+
+train_test_data = [train, test]
+for dataset in train_test_data:
+    dataset['isLegendary'] = dataset['isLegendary'].map({True: 1, False: 0}).astype(int)
+    
+    type_1.sort_values(by='isLegendary',ascending=False)
+    
+    type_1_mapping = {"Fire": 1, "Dragon": 2, "Electric": 3, "Fighting": 4, "Ice": 5, "Flying": 6, "Water": 7, "Ghost": 8, "Steel": 9, "None": 10, "Fairy": 11, "Psychic": 12, "Ground": 13, "Rock": 14, "Bug": 15, "Poison": 16, "Normal": 17, "Dark": 18, "Grass": 19}
+for dataset in train_test_data:
+    dataset['Type_1'] = dataset['Type_1'].map(type_1_mapping)
+    dataset['Type_1'] = dataset['Type_1'].fillna(0)
+    
+    type_2_mapping = {"Fire": 1, "Dragon": 2, "Electric": 3, "Fighting": 4, "Ice": 5, "Flying": 6, "Water": 7, "Ghost": 8, "Steel": 9, "None": 10, "Fairy": 11, "Psychic": 12, "Ground": 13, "Rock": 14, "Bug": 15, "Poison": 16, "Normal": 17, "Dark": 18, "Grass": 19}
+for dataset in train_test_data:
+    dataset['Type_2'] = dataset['Type_2'].map(type_2_mapping)
+    dataset['Type_2'] = dataset['Type_2'].fillna(0)
+    
+    for dataset in train_test_data:
+    pr_male_avg = dataset['Pr_Male'].mean()
+    pr_male_std = dataset['Pr_Male'].std()
+    pr_male_null_count = dataset['Pr_Male'].isnull().sum()
+    
+    pr_male_null_random_list = np.random.uniform(pr_male_avg - pr_male_std, pr_male_avg + pr_male_std, pr_male_null_count)
+    dataset['Pr_Male'][np.isnan(dataset['Pr_Male'])] = pr_male_null_random_list
+    dataset['Pr_Male'] = dataset['Pr_Male'].astype(int)
+    
+train['Pr_Male_Band'] = pd.cut(train['Pr_Male'], 5)
+
+print(train[['Pr_Male_Band', 'isLegendary']].groupby(['Pr_Male_Band'], as_index=False).mean())
+
+for dataset in train_test_data:
+    dataset.loc[ dataset['Pr_Male'] <= 0.2, 'Pr_Male'] = 0
+    dataset.loc[(dataset['Pr_Male'] > 0.2) & (dataset['Pr_Male'] <= 0.4), 'Pr_Male'] = 1
+    dataset.loc[(dataset['Pr_Male'] > 0.4) & (dataset['Pr_Male'] <= 0.6), 'Pr_Male'] = 2
+    dataset.loc[(dataset['Pr_Male'] > 0.6) & (dataset['Pr_Male'] <= 0.8), 'Pr_Male'] = 3
+    dataset.loc[ dataset['Pr_Male'] >= 1, 'Pr_Male'] = 4
+    
+   for dataset in train_test_data:
+    attack_avg = dataset['Attack'].mean()
+    attack_std = dataset['Attack'].std()
+    attack_null_count = dataset['Attack'].isnull().sum()
+    
+    attack_null_random_list = np.random.randint(attack_avg - attack_std, attack_avg + attack_std, attack_null_count)
+    dataset['Attack'][np.isnan(dataset['Attack'])] = attack_null_random_list
+    dataset['Attack'] = dataset['Attack'].astype(int)
+    
+train['Attack_Band'] = pd.cut(train['Attack'], 5)
+
+print(train[['Attack_Band', 'isLegendary']].groupby(['Attack_Band'], as_index=False).mean())
+
+for dataset in train_test_data:
+    dataset.loc[ dataset['Attack'] <= 36, 'Attack'] = 0
+    dataset.loc[(dataset['Attack'] > 36) & (dataset['Attack'] <= 67), 'Attack'] = 1
+    dataset.loc[(dataset['Attack'] > 67) & (dataset['Attack'] <= 98), 'Attack'] = 2
+    dataset.loc[(dataset['Attack'] > 98) & (dataset['Attack'] <= 129), 'Attack'] = 3
+    dataset.loc[ dataset['Attack'] >= 129, 'Attack'] = 4
+    
+    for dataset in train_test_data:
+    defense_avg = dataset['Defense'].mean()
+    defense_std = dataset['Defense'].std()
+    defense_null_count = dataset['Defense'].isnull().sum()
+    
+    defense_null_random_list = np.random.randint(defense_avg - defense_std, defense_avg + defense_std, defense_null_count)
+    dataset['Defense'][np.isnan(dataset['Defense'])] = defense_null_random_list
+    dataset['Defense'] = dataset['Defense'].astype(int)
+    
+train['Defense_Band'] = pd.cut(train['Defense'], 5)
+
+print(train[['Defense_Band', 'isLegendary']].groupby(['Defense_Band'], as_index=False).mean())
+
+for dataset in train_test_data:
+    dataset.loc[ dataset['Defense'] <= 50, 'Defense'] = 0
+    dataset.loc[(dataset['Defense'] > 50) & (dataset['Defense'] <= 95), 'Defense'] = 1
+    dataset.loc[(dataset['Defense'] > 95) & (dataset['Defense'] <= 140), 'Defense'] = 2
+    dataset.loc[(dataset['Defense'] > 140) & (dataset['Defense'] <= 230), 'Defense'] = 3
+    dataset.loc[ dataset['Defense'] >= 230, 'Defense'] = 4
+    
+for dataset in train_test_data:
+    cr_avg = dataset['Catch_Rate'].mean()
+    cr_std = dataset['Catch_Rate'].std()
+    cr_null_count = dataset['Catch_Rate'].isnull().sum()
+    
+    cr_null_random_list = np.random.randint(cr_avg - cr_std, cr_avg + cr_std, cr_null_count)
+    dataset['Catch_Rate'][np.isnan(dataset['Catch_Rate'])] = cr_null_random_list
+    dataset['Catch_Rate'] = dataset['Catch_Rate'].astype(int)
+    
+train['Catch_Rate_Band'] = pd.cut(train['Catch_Rate'], 5)
+
+print(train[['Catch_Rate_Band', 'isLegendary']].groupby(['Catch_Rate_Band'], as_index=False).mean())
+
+for dataset in train_test_data:
+    dataset.loc[ dataset['Catch_Rate'] <= 53, 'Catch_Rate'] = 0
+    dataset.loc[(dataset['Catch_Rate'] > 53) & (dataset['Catch_Rate'] <= 104), 'Catch_Rate'] = 1
+    dataset.loc[(dataset['Catch_Rate'] > 104) & (dataset['Catch_Rate'] <= 154), 'Catch_Rate'] = 2
+    dataset.loc[(dataset['Catch_Rate'] > 154) & (dataset['Catch_Rate'] <= 204), 'Catch_Rate'] = 3
+    dataset.loc[ dataset['Catch_Rate'] >= 255, 'Catch_Rate'] = 4
+    
+train.columns
+    
+train_drop = ['Number', 'Name', 'Total', 'HP', 'Sp_Atk', 'Sp_Def', 'Speed', 'Generation','Color', 'hasGender', 'Egg_Group_1', 'hasMegaEvolution','Height_m', 'Weight_kg', 'Body_Style', 'shuffle','Pr_Male_Band', 'Attack_Band', 'Defense_Band', 'Catch_Rate_Band']
+train = train.drop(train_drop, axis=1)
+
+test_drop = ['Number', 'Name', 'Total', 'HP', 'Sp_Atk', 'Sp_Def', 'Speed', 'Generation',
+       'Color', 'hasGender', 'Egg_Group_1', 'Egg_Group_2', 'isLegendary',
+       'hasMegaEvolution', 'Height_m', 'Weight_kg', 'Body_Style',
+       'shuffle']
+test = test.drop(test_drop, axis=1)
+
+
+  
+X_train = train.drop('isLegendary', axis=1)
+y_train = train['isLegendary']
+X_test = test.copy()
+
+X_train.shape, y_train.shape, X_test.shape
+
+# Importing Classifier Modules
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC, LinearSVC
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.linear_model import Perceptron
+from sklearn.linear_model import SGDClassifier
+
+
+clf = LogisticRegression()
+clf.fit(X_train, y_train)
+y_pred_log_reg = clf.predict(X_test)
+acc_log_reg = round( clf.score(X_train, y_train) * 100, 2)
+print(str(acc_log_reg) + ' percent)
+      
+clf = SVC()
+clf.fit(X_train, y_train)
+y_pred_svc = clf.predict(X_test)
+acc_svc = round(clf.score(X_train, y_train) * 100, 2)
+print (acc_svc)
+      
+clf = KNeighborsClassifier(n_neighbors = 3)
+clf.fit(X_train, y_train)
+y_pred_knn = clf.predict(X_test)
+acc_knn = round(clf.score(X_train, y_train) * 100, 2)
+print (acc_knn)
+      
+clf = DecisionTreeClassifier()
+clf.fit(X_train, y_train)
+y_pred_decision_tree = clf.predict(X_test)
+acc_decision_tree = round(clf.score(X_train, y_train) * 100, 2)
+print (acc_decision_tree)
+      
+clf = RandomForestClassifier(n_estimators=100)
+clf.fit(X_train, y_train)
+y_pred_random_forest = clf.predict(X_test)
+acc_random_forest = round(clf.score(X_train, y_train) * 100, 2)
+print (acc_random_forest)
+
+clf = GaussianNB()
+clf.fit(X_train, y_train)
+y_pred_gnb = clf.predict(X_test)
+acc_gnb = round(clf.score(X_train, y_train) * 100, 2)
+print (acc_gnb)
+      
